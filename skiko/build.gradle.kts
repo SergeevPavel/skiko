@@ -659,6 +659,12 @@ publishing {
                 artifact(skikoJvmRuntimeJar.map { it.archiveFile.get() })
             }
         }
+        create<MavenPublication>("skikoNativeRuntime") {
+            artifactId = SkikoArtifacts.nativeRuntimeArtifactIdFor(targetOs, targetArch)
+            afterEvaluate {
+                artifact(project.tasks.getByName("cinteropSkiaMacosX64").outputs.getFiles().single())
+            }
+        }
     }
 }
 

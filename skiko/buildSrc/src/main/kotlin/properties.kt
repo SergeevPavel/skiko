@@ -135,4 +135,6 @@ object SkikoArtifacts {
     val commonArtifactId = "skiko-jvm"
     fun runtimeArtifactIdFor(os: OS, arch: Arch) =
         "skiko-jvm-runtime-${targetId(os, arch)}"
+    fun nativeRuntimeArtifactIdFor(os: OS, arch: Arch) =
+        "skiko-native-runtime-${targetId(os, arch)}"
 }
