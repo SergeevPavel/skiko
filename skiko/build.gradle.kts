@@ -4,7 +4,7 @@ import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
 import org.jetbrains.kotlin.gradle.tasks.KotlinTest
 
 plugins {
-    kotlin("multiplatform") version "1.3.72"
+    kotlin("multiplatform") version "1.4.30"
     `cpp-library`
     `maven-publish`
     id("org.gradle.crypto.checksum") version "1.1.0"
@@ -154,6 +154,33 @@ kotlin {
         withJava()
     }
 
+    val nativeTarget = when (target) {
+        "macos-x64" -> macosX64()
+        // "linux-x64" -> linuxX64()
+        // "windows-x64" -> mingwX64()
+        else -> null
+    }
+    nativeTarget?.apply {
+        compilations.getByName("main") {
+            val skia by cinterops.creating {
+                // WARNING WARNING
+                // You need a custom build of Kotlin/Native for this to work.
+                // Then pass it to the build like -Porg.jetbrains.kotlin.native.home=special-kotlin-native/dist
+
+                defFile("src/nativeInterop/cinterop/skia.def")
+                // TODO: how do we express dependency on something for cinterops?
+                // dependsOn(skiaDir)
+                val skiaDir = skiaDir.get().absolutePath
+                // TODO: see def file.
+                // compilerOpts(
+                //     "-I/Users/jetbrains/.konan/dependencies/clang-llvm-apple-8.0.0-darwin-macos//include/c++/v1",
+                //     "-I$skiaDir"
+                extraOpts("-staticLibrary", "libskia.a")
+                extraOpts("-libraryPath", "$skiaDir/out/Release-x64")
+            }
+        }
+    }
+
     sourceSets {
         val commonMain by getting {
             dependencies {
@@ -182,7 +209,15 @@ kotlin {
                 implementation(kotlin("test-junit"))
             }
         }
+
+        val nativeMain by creating {
+
+        }
     }
+}
+
+tasks.getByName("cinteropSkiaMacosX64") {
+    dependsOn(skiaDir)
 }
 
 tasks.withType(JavaCompile::class.java).configureEach {
