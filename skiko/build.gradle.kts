@@ -2,6 +2,7 @@ import de.undercouch.gradle.tasks.download.Download
 import org.gradle.crypto.checksum.Checksum
 import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
 import org.jetbrains.kotlin.gradle.tasks.KotlinTest
+import org.jetbrains.kotlin.gradle.tasks.CInteropProcess
 
 plugins {
     kotlin("multiplatform") version "1.4.30"
@@ -662,7 +663,7 @@ publishing {
         create<MavenPublication>("skikoNativeRuntime") {
             artifactId = SkikoArtifacts.nativeRuntimeArtifactIdFor(targetOs, targetArch)
             afterEvaluate {
-                artifact(project.tasks.getByName("cinteropSkiaMacosX64").outputs.getFiles().single())
+                artifact(project.tasks.withType(CInteropProcess::class.java).single().outputs.getFiles().single())
             }
         }
     }
