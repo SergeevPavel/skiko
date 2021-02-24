@@ -1,0 +1,48 @@
+package org.jetbrains.skiko.native.context
+
+import kotlinx.cinterop.ptr
+import org.jetbrains.skiko.skia.native.*
+import org.jetbrains.skiko.native.*
+//import org.jetbrains.skiko.OS
+//import org.jetbrains.skiko.hostOs
+
+internal fun createContextHandler(layer: HardwareLayer): ContextHandler {
+    return OpenGLContextHandler(layer)
+    //return when (SkikoProperties.renderApi) {
+    //    GraphicsApi.SOFTWARE -> SoftwareContextHandler(layer)
+    //    GraphicsApi.OPENGL -> OpenGLContextHandler(layer)
+    //    else -> TODO("Unsupported yet")
+    //}
+}
+
+internal abstract class ContextHandler(val layer: HardwareLayer) {
+
+    // TODO: hostOs is all written in jdk kotlin.
+    // open val bleachConstant = if (hostOs == OS.MacOS) 0 else -1
+    open val bleachConstant = 0
+    var context: GrDirectContext? = null
+    var renderTarget: GrBackendRenderTarget? = null
+    var surface: SkSurface? = null
+    var canvas: SkCanvas? = null
+
+    abstract fun initContext(): Boolean
+
+    abstract fun initCanvas()
+
+    fun clearCanvas() {
+        canvas?.clear(bleachConstant)
+    }
+
+    open fun drawOnCanvas(picture: SkPicture) {
+        canvas?.drawPicture(picture.ptr)
+    }
+
+    open fun flush() {
+        context?.flush()
+    }
+
+    fun dispose() {
+        surface?.close()
+        renderTarget?.close()
+    }
+}

@@ -3,6 +3,7 @@ import org.gradle.crypto.checksum.Checksum
 import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
 import org.jetbrains.kotlin.gradle.tasks.KotlinTest
 import org.jetbrains.kotlin.gradle.tasks.CInteropProcess
+import org.jetbrains.kotlin.gradle.tasks.KotlinNativeCompile
 
 plugins {
     kotlin("multiplatform") version "1.4.30"
@@ -175,7 +176,7 @@ kotlin {
                     ?: File(System.getProperty("user.home")).resolve(".konan")
 
                 // TODO: C++ requires headers to be present at library use time.
-                // Currently the custom K/N writes the external cinterop compilerOpts value
+                // Currently the custom K/N writes the external cinterop compilerOpts values
                 // to manifest addend as `externalCompilerOpts`.
                 // And then konanc picks it up from there for C++ invocations.
                 compilerOpts(
@@ -219,14 +220,13 @@ kotlin {
             }
         }
 
-        val nativeMain by creating {
-
+        val macosX64Main by getting {
         }
     }
 }
 
-tasks.getByName("cinteropSkiaMacosX64") {
-    dependsOn(skiaDir)
+tasks.withType(CInteropProcess::class.java).forEach {
+    it.dependsOn(skiaDir)
 }
 
 tasks.withType(JavaCompile::class.java).configureEach {
@@ -660,10 +660,19 @@ publishing {
                 artifact(skikoJvmRuntimeJar.map { it.archiveFile.get() })
             }
         }
+        create<MavenPublication>("skikoNativeSkiaInterop") {
+            artifactId = SkikoArtifacts.nativeSkiaInteropArtifactIdFor(targetOs, targetArch)
+            afterEvaluate {
+                artifact(project.tasks.withType(CInteropProcess::class.java).single().outputs.getFiles().single())
+            }
+        }
         create<MavenPublication>("skikoNativeRuntime") {
             artifactId = SkikoArtifacts.nativeRuntimeArtifactIdFor(targetOs, targetArch)
             afterEvaluate {
-                artifact(project.tasks.withType(CInteropProcess::class.java).single().outputs.getFiles().single())
+                artifact(project.tasks.withType(KotlinNativeCompile::class.java)
+                    .single { it.name.startsWith("compileKotlin") } // Exclude compileTestKotlin.
+                    .outputs.getFiles().single { it.name.endsWith(".klib") }
+                )
             }
         }
     }

@@ -137,4 +137,6 @@ object SkikoArtifacts {
         "skiko-jvm-runtime-${targetId(os, arch)}"
     fun nativeRuntimeArtifactIdFor(os: OS, arch: Arch) =
         "skiko-native-runtime-${targetId(os, arch)}"
+    fun nativeSkiaInteropArtifactIdFor(os: OS, arch: Arch) =
+        "skiko-native-skia-interop-${targetId(os, arch)}"
 }
