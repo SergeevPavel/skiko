@@ -33,6 +33,7 @@ open class SkiaLayer(
     private val pictureLock = Any()
 
     override fun init() {
+        println("SkiaLayer::init")
         super.init()
         redrawer = platformOperations.createRedrawer(this, properties)
         //redrawer?.syncSize()
@@ -72,6 +73,7 @@ open class SkiaLayer(
     //private val fpsCounter = defaultFPSCounter(this)
 
     override fun update(nanoTime: Long) {
+        println("SkiaLayer::update")
         //check(!isDisposed)
         //check(isEventDispatchThread())
 
@@ -97,9 +99,6 @@ open class SkiaLayer(
         // we can dispose layer during onRender
         //if (!isDisposed) {
             // synchronized(pictureLock) {
-
-
-                // TODO:
                 //picture?.instance?.close()
                 val picture = pictureRecorder.finishRecordingAsPicture()!!
                 this.picture = PictureHolder(picture, pictureWidth.toInt(), pictureHeight.toInt())
@@ -108,16 +107,19 @@ open class SkiaLayer(
     }
 
     override fun draw() {
+        println("SkiaLayer::draw")
         //check(!isDisposed)
         skiaState.apply {
-            //if (!initContext()) {
-            //    fallbackToRaster()
-            //    return
-            //}
+            if (!initContext()) {
+                error("initContext() failure. No fallback to raster for Skia/native yet.")
+                //fallbackToRaster()
+                return
+            }
             initCanvas()
             clearCanvas()
             //synchronized(pictureLock) {
                 val picture = picture
+                println("SkiaLayer::draw: picture=$picture")
                 if (picture != null) {
                     drawOnCanvas(picture.instance)
                 }

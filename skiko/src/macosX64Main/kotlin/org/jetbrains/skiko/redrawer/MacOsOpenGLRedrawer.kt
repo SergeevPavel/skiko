@@ -2,15 +2,11 @@ package org.jetbrains.skiko.native.redrawer
 
 import kotlinx.cinterop.CPointer
 import kotlinx.cinterop.useContents
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.delay
+//import kotlinx.coroutines.Dispatchers
 import org.jetbrains.skiko.native.*
 import platform.CoreFoundation.CFTimeInterval
 import platform.CoreGraphics.CGRectMake
 import platform.CoreVideo.CVTimeStamp
-import platform.OpenGL3.GL_COLOR_BUFFER_BIT
-import platform.OpenGL3.glClear
-import platform.OpenGL3.glClearColor
 import platform.OpenGLCommon.CGLContextObj
 import platform.OpenGLCommon.CGLPixelFormatObj
 import platform.OpenGLCommon.CGLSetCurrentContext
@@ -31,20 +27,11 @@ internal class MacOsOpenGLRedrawer(
     private val layer: HardwareLayer,
     private val properties: SkiaLayerProperties
 ) : Redrawer {
-    private val containerLayer = layer
-    private val drawLock = Any()
+    //private val drawLock = Any()
     private var isDisposed = false
 
-    private val drawLayer = object : MacosGLLayer(containerLayer, setNeedsDisplayOnBoundsChange = true) {
-        override fun draw() = //synchronized(drawLock) {
-            //if (!isDisposed) {
-                layer.draw()
-            //}
-        //}
-
-        suspend fun display() = display(::setNeedsDisplay)
-    }
-
+    private val drawLayer = MacosGLLayer(layer, setNeedsDisplayOnBoundsChange = true)
+/*
     // use a separate layer for vsync, because with single layer we cannot asynchronously update layer
     // `update` is suspend, and runBlocking(Dispatchers.Swing) causes dead lock with AppKit Thread.
     // AWT has a method to avoid dead locks but it is internal (sun.lwawt.macosx.LWCToolkit.invokeAndWait)
@@ -103,12 +90,12 @@ internal class MacOsOpenGLRedrawer(
             error("Drawing without vsync isn't supported on macOs with OpenGL")
         }
     }
-
-    override fun dispose() = synchronized(drawLock) {
-        frameDispatcher.cancel()
-        vsyncLayer.dispose()
+*/
+    override fun dispose() { // = synchronized(drawLock) {
+        //frameDispatcher.cancel()
+        //vsyncLayer.dispose()
         drawLayer.dispose()
-        isDisposed = true
+        //isDisposed = true
     }
 
     override fun syncSize() {
@@ -133,7 +120,7 @@ internal class MacOsOpenGLRedrawer(
     }
 
     override fun needRedraw() {
-        frameDispatcher.scheduleFrame()
+        //frameDispatcher.scheduleFrame()
     }
 
     override fun redrawImmediately() {
@@ -147,96 +134,47 @@ internal class MacOsOpenGLRedrawer(
         // We don't use setNeedsDisplay, because frequent calls of it are unreliable.
         // 'setNeedsDisplayOnBoundsChange=true' with combination of 'scheduleFrame' is enough
         // to not see the white bars on resize.
-        frameDispatcher.scheduleFrame()
+
+        //frameDispatcher.scheduleFrame()
     }
 }
 
-class NativeMacosGLLayer {
-    val caOpenGLLayer = CAOpenGLLayer().also {
-        it.removeAllAnimations()
-        it.setAutoresizingMask(kCALayerWidthSizable or kCALayerHeightSizable )
+class MacosGLLayer(val layer: HardwareLayer, setNeedsDisplayOnBoundsChange: Boolean) : CAOpenGLLayer() {
+
+    val container = layer.nsView
+
+    init {
+        this.setNeedsDisplayOnBoundsChange(setNeedsDisplayOnBoundsChange)
+        this.removeAllAnimations()
+        this.setAutoresizingMask(kCALayerWidthSizable or kCALayerHeightSizable )
+        container.layer = this
+        container.wantsLayer = true
     }
 
-    fun canDrawInCGLContext(
-        ctx: CGLContextObj?,
-        pixelFormat: CGLPixelFormatObj?,
-        forLayerTime: CFTimeInterval,
-        displayTime: CPointer<CVTimeStamp>?
-    ): Boolean {
-        return caOpenGLLayer.canDrawInCGLContext(ctx, pixelFormat, forLayerTime, displayTime)
+    //private val display = Task()
+
+    fun draw()  { //= synchronized(drawLock) {
+        println("MacosGLLayer::draw")
+        //if (!isDisposed) {
+            layer.update(getTimeNanos())
+            layer.draw()
+        //}
     }
-
-    fun drawInCGLContext(
-        ctx: CGLContextObj?,
-        pixelFormat: CGLPixelFormatObj?,
-        forLayerTime: CFTimeInterval,
-        displayTime: CPointer<CVTimeStamp>?
-    ) {
-        CGLSetCurrentContext(ctx);
-        caOpenGLLayer.drawInCGLContext(ctx, pixelFormat,forLayerTime, displayTime)
-    }
-
-    companion object {
-        fun initGlLayer(caLayer: CALayer, setNeedsDisplayOnBoundsChange: Boolean): NativeMacosGLLayer {
-            val glLayer = NativeMacosGLLayer();
-            glLayer.caOpenGLLayer.setNeedsDisplayOnBoundsChange(setNeedsDisplayOnBoundsChange)
-            caLayer.addSublayer(glLayer.caOpenGLLayer)
-            return glLayer
-        }
-
-        fun setFrame(
-            container: CALayer,
-            glLayer: CAOpenGLLayer,
-            x: Float, y: Float, width: Float, height: Float
-        ) {
-
-            val newY = container.frame.useContents { size.height } - y - height
-
-            CATransaction.begin()
-            CATransaction.setDisableActions(true)
-            glLayer.frame = CGRectMake(x.toDouble(), newY, width.toDouble(), height.toDouble())
-            CATransaction.commit()
-        }
-
-        fun disposeGLLayer(glLayer: CAOpenGLLayer) {
-            glLayer.removeFromSuperlayer()
-            // glLayer.release()
-        }
-
-        fun isAsynchronous(glLayer: CAOpenGLLayer): Boolean {
-            return glLayer.isAsynchronous();
-        }
-
-        fun setAsynchronous(glLayer: CAOpenGLLayer, isAsynchronous: Boolean) {
-            glLayer.setAsynchronous(isAsynchronous)
-        }
-
-        fun setNeedsDisplayOnMainThread(glLayer: CAOpenGLLayer)
-        {
-            dispatch_async(dispatch_get_main_queue(), {
-                glLayer.setNeedsDisplay()
-            })
-        }
-    }
-}
-
-private abstract class MacosGLLayer(layer: HardwareLayer, setNeedsDisplayOnBoundsChange: Boolean) {
-    @Suppress("LeakingThis")
-    val container = layer.nsView.layer ?: error("No layer for NSView")
-    val ptr = NativeMacosGLLayer.initGlLayer(container, setNeedsDisplayOnBoundsChange)
-
-    private val display = Task()
 
     fun setFrame(x: Int, y: Int, width: Int, height: Int) {
-        NativeMacosGLLayer.setFrame(container, ptr.caOpenGLLayer, x.toFloat(), y.toFloat(), width.toFloat(), height.toFloat())
+        val newY = container.frame.useContents { size.height } - y - height
+
+        CATransaction.begin()
+        CATransaction.setDisableActions(true)
+        this.frame = CGRectMake(x.toDouble(), newY, width.toDouble(), height.toDouble())
+        CATransaction.commit()
     }
 
     // Called in AWT Thread
-    open fun dispose() = NativeMacosGLLayer.disposeGLLayer(ptr.caOpenGLLayer)
-
-    var isAsynchronous: Boolean
-        get() = NativeMacosGLLayer.isAsynchronous(ptr.caOpenGLLayer)
-        set(value) = NativeMacosGLLayer.setAsynchronous(ptr.caOpenGLLayer, value)
+    fun dispose() {
+        this.removeFromSuperlayer()
+        // TODO: anything else to dispose the layer?
+    }
 
     /**
      * Schedule next [draw] as soon as possible (not waiting for vsync)
@@ -250,15 +188,15 @@ private abstract class MacosGLLayer(layer: HardwareLayer, setNeedsDisplayOnBound
      *
      * Only after the next vsync, [setNeedsDisplay] will be working again.
      */
-    fun setNeedsDisplay() {
-        NativeMacosGLLayer.setNeedsDisplayOnMainThread(ptr.caOpenGLLayer)
-    }
+    //fun setNeedsDisplay() {
+    //
+    //}
 
-    protected suspend fun display(
-        startDisplay: () -> Unit
-    ) = display.runAndAwait {
-        startDisplay()
-    }
+    //protected suspend fun display(
+    //    startDisplay: () -> Unit
+    //) = display.runAndAwait {
+    //    startDisplay()
+    //}
 
     // Called in AppKit Thread
     protected open fun canDraw() = true
@@ -271,10 +209,37 @@ private abstract class MacosGLLayer(layer: HardwareLayer, setNeedsDisplayOnBound
         } catch (e: Throwable) {
             e.printStackTrace()
         }
-        display.finish()
+        //display.finish()
     }
 
-    // Called in AppKit Thread
-    protected abstract fun draw()
+    override fun canDrawInCGLContext(
+        ctx: CGLContextObj?,
+        pixelFormat: CGLPixelFormatObj?,
+        forLayerTime: CFTimeInterval,
+        displayTime: CPointer<CVTimeStamp>?
+    ): Boolean {
+        return canDraw()
+    }
 
+    override fun drawInCGLContext(
+        ctx: CGLContextObj?,
+        pixelFormat: CGLPixelFormatObj?,
+        forLayerTime: CFTimeInterval,
+        displayTime: CPointer<CVTimeStamp>?
+    ) {
+        CGLSetCurrentContext(ctx);
+        println("MacosGLLayer::drawInCGLContext")
+        println("DRAWING")
+
+        performDraw()
+
+        //context.flush() // TODO: I thought the below should call context.flush().
+        super.drawInCGLContext(ctx, pixelFormat,forLayerTime, displayTime)
+    }
+
+    fun setNeedsDisplayOnMainThread(glLayer: CAOpenGLLayer) {
+        dispatch_async(dispatch_get_main_queue(), {
+            this.setNeedsDisplay()
+        })
+    }
 }

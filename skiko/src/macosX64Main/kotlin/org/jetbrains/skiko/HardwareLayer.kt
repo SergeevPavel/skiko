@@ -8,23 +8,26 @@ import platform.CoreGraphics.*
 
 abstract class HardwareLayer {
 
-    val nsView = NSView(NSMakeRect(100.0, 100.0, 100.0, 100.0))
+    val nsView = NSView(NSMakeRect(0.0, 0.0, 640.0, 480.0))
 
     // getDpiScale is expensive operation on some platforms, so we cache it
     private var _contentScale: Float? = null
     private var isInit = false
 
-    /*
+
     init {
-        @Suppress("LeakingThis")
-        addHierarchyListener {
-            if (it.changeFlags and HierarchyEvent.SHOWING_CHANGED.toLong() != 0L) {
-                checkIsShowing()
-            }
-        }
+
+        // TODO: what's the proper way to do it for native Macos?
+
+        //@Suppress("LeakingThis")
+        //addHierarchyListener {
+        //    if (it.changeFlags and HierarchyEvent.SHOWING_CHANGED.toLong() != 0L) {
+        //        checkIsShowing()
+        //    }
+        //}
     }
-*/
-    private fun checkIsShowing() {
+
+    /*private*/ fun checkIsShowing() {
         if (!isInit && !nsView.hiddenOrHasHiddenAncestor) {
             // _contentScale = getDpiScale()
             _contentScale = 1.0f // TODO: what's the proper way here?
@@ -34,7 +37,7 @@ abstract class HardwareLayer {
     }
 
 
-    protected open fun init() {
+    /*protected*/ open fun init() {
  //       useDrawingSurfacePlatformInfo(::nativeInit)
     }
 
