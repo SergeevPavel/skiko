@@ -53,7 +53,7 @@ fun displayScene(renderer: Renderer, nanoTime: Long) {
 
     canvas.save();
     canvas.translate(128.0f, 128.0f)
-    canvas.rotate(nanoTime.toFloat())
+    canvas.rotate(nanoTime.toFloat() / 1e7f)
     val rect = SkRect.MakeXYWH(-90.5f, -90.5f, 181.0f, 181.0f)
     canvas.drawRect(rect, paint.ptr)
     canvas.restore();
