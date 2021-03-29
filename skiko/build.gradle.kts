@@ -165,22 +165,14 @@ kotlin {
     nativeTarget?.apply {
         compilations.getByName("main") {
             val skia by cinterops.creating {
-                // WARNING WARNING
-                // You need a custom build of Kotlin/Native for this to work.
-                // Then pass it to the build like -Porg.jetbrains.kotlin.native.home=special-kotlin-native/dist
-
                 defFile("src/nativeInterop/cinterop/skia.def")
 
                 val skiaDir = skiaDir.get().absolutePath
                 val kotlinNativeDataPath = System.getenv("KONAN_DATA_DIR")?.let { File(it) }
                     ?: File(System.getProperty("user.home")).resolve(".konan")
 
-                // TODO: C++ requires headers to be present at library use time.
-                // Currently the custom K/N writes the external cinterop compilerOpts values
-                // to manifest addend as `externalCompilerOpts`.
-                // And then konanc picks it up from there for C++ invocations.
                 compilerOpts(
-                     // TODO: WTF??? Why do we need `include/c++/v1`?
+                     // TODO: Why do we need `include/c++/v1`?
                      "-I$kotlinNativeDataPath/dependencies/clang-llvm-apple-8.0.0-darwin-macos//include/c++/v1",
                      "-I$skiaDir"
                 )
